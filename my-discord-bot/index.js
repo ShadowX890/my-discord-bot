@@ -16,163 +16,132 @@ const {
     StringSelectMenuOptionBuilder,
     EmbedBuilder,
     ApplicationCommandOptionType,
-    ModalBuilder,       // <--- เพิ่มตัวสร้างฟอร์ม
-    TextInputBuilder,   // <--- เพิ่มช่องกรอกข้อความ
-    TextInputStyle      // <--- เพิ่มรูปแบบช่องข้อความ
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle,
+    MessageFlags // <--- 1. เพิ่มตัวนี้เข้ามาใหม่ เพื่อแก้ Warning
 } = require('discord.js');
 
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] // เพิ่ม GuildMembers เผื่อไว้แจกยศ
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
 });
 
-// 🔥 ตั้งค่า ID ยศที่จะแจกตรงนี้ (อย่าลืมเปลี่ยนนะครับ!)
-const VERIFY_ROLE_ID = '1458053861842358434'; 
+// 🔥 ตั้งค่า ID (อย่าลืมแก้ ID ให้ถูกต้องนะครับ) 🔥
+const VERIFY_ROLE_ID = '123456789012345678';      // ID ยศที่จะแจก
+const LOG_CHANNEL_ID = '987654321098765432';      // ID ห้อง Log
 
-// --- 1. ลงทะเบียนคำสั่ง ---
 client.once('ready', async () => {
     console.log(`✅ บอท ${client.user.tag} ออนไลน์!`);
     const commands = [
         { name: 'menu', description: 'เปิดเมนูรับของรางวัล (เฉพาะเจ้าของ)' },
         { name: 'clear', description: 'ลบข้อความ (เฉพาะเจ้าของ)', options: [{ name: 'amount', description: 'จำนวน', type: ApplicationCommandOptionType.Integer, required: true }] },
         { name: 'rules', description: 'ประกาศกฎระเบียบ (เฉพาะเจ้าของ)' },
-        { name: 'verify', description: 'สร้างปุ่มยืนยันตัวตน (เฉพาะเจ้าของ)' } // <--- เพิ่มคำสั่งนี้
+        { name: 'verify', description: 'สร้างปุ่มยืนยันตัวตน (เฉพาะเจ้าของ)' }
     ];
     try { await client.application.commands.set(commands); console.log('🎉 ลงทะเบียนคำสั่งเรียบร้อย!'); } 
     catch (error) { console.error('Error:', error); }
 });
 
-// --- 2. จัดการ Interaction ---
 client.on('interactionCreate', async (interaction) => {
     
-    // ==========================================
-    // ส่วน A: จัดการ Slash Command
-    // ==========================================
+    // ================= A: Slash Command =================
     if (interaction.isChatInputCommand()) {
-        
-        // เช็คความเป็นเจ้าของ (ใช้ได้กับทุกคำสั่งในนี้)
         if (interaction.user.id !== interaction.guild.ownerId) {
-            return interaction.reply({ content: '⛔ เฉพาะเจ้าของเซิร์ฟเวอร์เท่านั้น', ephemeral: true });
+            // 2. เปลี่ยน ephemeral: true เป็น flags: MessageFlags.Ephemeral
+            return interaction.reply({ content: '⛔ เฉพาะเจ้าของเซิร์ฟเวอร์เท่านั้น', flags: MessageFlags.Ephemeral });
         }
 
-        // --- คำสั่ง /verify (สร้างปุ่ม) ---
         if (interaction.commandName === 'verify') {
             const verifyEmbed = new EmbedBuilder()
-                .setColor(0x00FF00) // สีเขียว
+                .setColor(0x00FF00)
                 .setTitle('🔐 Verification Required')
                 .setDescription('เพื่อความปลอดภัย กรุณากดปุ่มด้านล่างและกรอกข้อมูลให้ครบถ้วนเพื่อเข้าสู่เซิร์ฟเวอร์ครับ')
                 .setFooter({ text: 'กดปุ่ม Verify เพื่อเริ่มทำรายการ' });
 
             const verifyBtn = new ButtonBuilder()
-                .setCustomId('btn_open_verify_modal') // ID ปุ่ม
+                .setCustomId('btn_open_verify_modal')
                 .setLabel('Verify / ยืนยันตัวตน')
                 .setStyle(ButtonStyle.Success)
                 .setEmoji('✅');
 
-            const row = new ActionRowBuilder().addComponents(verifyBtn);
-
-            await interaction.reply({ embeds: [verifyEmbed], components: [row] });
+            await interaction.reply({ embeds: [verifyEmbed], components: [new ActionRowBuilder().addComponents(verifyBtn)] });
         }
 
-        // ... (คำสั่ง rules, menu, clear ของเดิม ปล่อยไว้เหมือนเดิมได้เลย) ...
         if (interaction.commandName === 'rules') {
-            const rulesEmbed = new EmbedBuilder().setColor(0x0099FF).setTitle('📜 Server Rules').setDescription('กรุณาปฏิบัติตามกฎระเบียบ');
-            await interaction.reply({ embeds: [rulesEmbed] });
+            await interaction.reply({ embeds: [new EmbedBuilder().setColor(0x0099FF).setTitle('📜 Server Rules').setDescription('กฎระเบียบ...')] });
         }
+        
         if (interaction.commandName === 'menu') {
-             // ... โค้ด menu เดิม ...
-             await interaction.reply({ content: 'เมนูมาแล้ว', ephemeral: true });
+            // แก้ Warning ตรงนี้
+            await interaction.reply({ content: 'เมนู (Demo)', flags: MessageFlags.Ephemeral }); 
         }
+        
         if (interaction.commandName === 'clear') {
-             // ... โค้ด clear เดิม ...
-             const amount = interaction.options.getInteger('amount');
-             await interaction.channel.bulkDelete(amount, true).catch(() => {});
-             await interaction.reply({ content: `ลบแล้ว ${amount}`, ephemeral: true });
+            const amount = interaction.options.getInteger('amount');
+            await interaction.channel.bulkDelete(amount, true).catch(() => {});
+            // แก้ Warning ตรงนี้
+            await interaction.reply({ content: `ลบแล้ว ${amount}`, flags: MessageFlags.Ephemeral });
         }
     }
 
-    // ==========================================
-    // ส่วน B: จัดการปุ่มกด (Button)
-    // ==========================================
+    // ================= B: Button (เปิดฟอร์ม) =================
     if (interaction.isButton()) {
-        
-        // เมื่อกดปุ่ม Verify ให้เด้ง Modal (ฟอร์ม) ขึ้นมา
         if (interaction.customId === 'btn_open_verify_modal') {
-            
-            const modal = new ModalBuilder()
-                .setCustomId('modal_verify_submit') // ID ของฟอร์มนี้
-                .setTitle('📝 แบบฟอร์มยืนยันตัวตน');
+            const modal = new ModalBuilder().setCustomId('modal_verify_submit').setTitle('📝 แบบฟอร์มยืนยันตัวตน');
 
-            // ช่องที่ 1: ชื่อ
-            const nameInput = new TextInputBuilder()
-                .setCustomId('input_name')
-                .setLabel("ชื่อเล่นของคุณคืออะไร?")
-                .setStyle(TextInputStyle.Short) // ช่องสั้น
-                .setRequired(true); // บังคับกรอก
-
-            // ช่องที่ 2: อายุ
-            const ageInput = new TextInputBuilder()
-                .setCustomId('input_age')
-                .setLabel("อายุเท่าไหร่?")
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true);
-
-            // ช่องที่ 3: เหตุผล
-            const reasonInput = new TextInputBuilder()
-                .setCustomId('input_reason')
-                .setLabel("เหตุผลที่เข้าเซิร์ฟเวอร์?")
-                .setStyle(TextInputStyle.Paragraph) // ช่องใหญ่ เขียนยาวได้
-                .setRequired(true);
-
-            // เอาช่องใส่เข้าไปในแถว (Discord บังคับ 1 ช่อง ต่อ 1 แถว)
-            const firstActionRow = new ActionRowBuilder().addComponents(nameInput);
-            const secondActionRow = new ActionRowBuilder().addComponents(ageInput);
-            const thirdActionRow = new ActionRowBuilder().addComponents(reasonInput);
-
-            // ใส่แถวเข้า Modal
-            modal.addComponents(firstActionRow, secondActionRow, thirdActionRow);
-
-            // สั่งให้เด้งขึ้นมา
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_name').setLabel("ชื่อเล่นของคุณคืออะไร?").setStyle(TextInputStyle.Short).setRequired(true)),
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_age').setLabel("อายุเท่าไหร่?").setStyle(TextInputStyle.Short).setRequired(true)),
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('input_reason').setLabel("เหตุผลที่เข้าเซิร์ฟเวอร์?").setStyle(TextInputStyle.Paragraph).setRequired(true))
+            );
             await interaction.showModal(modal);
         }
-
-        // ... (ปุ่มอื่นๆ ของ menu เดิม) ...
     }
 
-    // ==========================================
-    // ส่วน C: จัดการเมื่อส่งฟอร์ม (Modal Submit)
-    // ==========================================
+    // ================= C: Modal Submit (ส่งข้อมูล + Log) =================
     if (interaction.isModalSubmit()) {
-        
-        // เช็คว่าเป็นฟอร์ม verify หรือไม่
         if (interaction.customId === 'modal_verify_submit') {
             
-            // ดึงข้อมูลที่เขากรอกมา (เผื่อเอาไปใช้ Log ในอนาคต)
             const name = interaction.fields.getTextInputValue('input_name');
             const age = interaction.fields.getTextInputValue('input_age');
             const reason = interaction.fields.getTextInputValue('input_reason');
 
-            // ให้ยศ (Add Role)
             const role = interaction.guild.roles.cache.get(VERIFY_ROLE_ID);
             
-            if (!role) {
-                return interaction.reply({ content: '❌ ไม่พบยศที่กำหนด (กรุณาแจ้งแอดมินให้ตั้งค่า Role ID)', ephemeral: true });
-            }
+            // แก้ Warning ตรงนี้
+            if (!role) return interaction.reply({ content: '❌ Error: ไม่พบยศ Verify (เช็ค ID ในโค้ด)', flags: MessageFlags.Ephemeral });
 
             try {
-                // ให้ยศคนกด
                 await interaction.member.roles.add(role);
-                
-                // ตอบกลับเฉพาะคนกด
+
+                // แก้ Warning ตรงนี้
                 await interaction.reply({
-                    content: `✅ **ยืนยันตัวตนสำเร็จ!**\nยินดีต้อนรับคุณ **${name}** (อายุ ${age})\nเข้าสู่เซิร์ฟเวอร์ครับ! #❇️・𝐕𝐞𝐫𝐢𝐟𝐲-𝐥𝐨𝐠`,
-                    ephemeral: true 
+                    content: `✅ **ยืนยันตัวตนสำเร็จ!**\nยินดีต้อนรับคุณ **${name}** เข้าสู่เซิร์ฟเวอร์ครับ!`,
+                    flags: MessageFlags.Ephemeral 
                 });
 
-                // (Option) ถ้าอยากให้ส่ง Log ไปห้องแอดมินด้วย เพิ่มโค้ดตรงนี้ได้ครับ
+                const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
+                if (logChannel) {
+                    const logEmbed = new EmbedBuilder()
+                        .setColor(0xFFA500)
+                        .setTitle('📋 มีสมาชิกใหม่ Verify!')
+                        .setThumbnail(interaction.user.displayAvatarURL())
+                        .addFields(
+                            { name: '👤 ผู้ใช้งาน (User)', value: `${interaction.user.tag} (<@${interaction.user.id}>)`, inline: false },
+                            { name: '📛 ชื่อที่กรอก', value: name, inline: true },
+                            { name: '🎂 อายุ', value: age, inline: true },
+                            { name: '📝 เหตุผลที่เข้า', value: reason, inline: false }
+                        )
+                        .setFooter({ text: `User ID: ${interaction.user.id}` })
+                        .setTimestamp();
+
+                    await logChannel.send({ embeds: [logEmbed] });
+                }
 
             } catch (error) {
                 console.error(error);
-                await interaction.reply({ content: '❌ บอทไม่สามารถให้ยศได้ (โปรดเช็คว่ายศบอทอยู่สูงกว่ายศที่จะแจกหรือไม่)', ephemeral: true });
+                // แก้ Warning ตรงนี้
+                if (!interaction.replied) await interaction.reply({ content: '❌ บอทให้ยศไม่ได้ (เช็คยศบอทว่าอยู่สูงกว่ายศ Member หรือไม่)', flags: MessageFlags.Ephemeral });
             }
         }
     }
