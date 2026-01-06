@@ -1,3 +1,9 @@
+--- Update bot command ---
 git add .
-git commit -m "update bot"
+git commit -m "อัปเดตระบบใหม่"
+git push
+
+-- ลบไฟล์ใน git Hub --
+git rm -r --cached node_modules
+git commit -m "remove node_modules"
 git push
