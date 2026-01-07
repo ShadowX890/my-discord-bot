@@ -3,7 +3,9 @@ const express = require('express');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ส่วน Server สำหรับ Render
+// ==========================================
+// 1. ส่วน Server (สำหรับ Render)
+// ==========================================
 app.get('/', (req, res) => res.send('Bot is running!'));
 app.listen(port, () => console.log(`App listening on port ${port}`));
 
@@ -31,13 +33,13 @@ const client = new Client({
 });
 
 // ====================================================
-// ⚠️ โซนตั้งค่า (กรุณาแก้ไขเลข ID ให้ถูกต้อง)
+// ⚠️ โซนตั้งค่า (อย่าลืมแก้เลข ID ให้ถูกต้อง!)
 // ====================================================
-const VERIFY_ROLE_ID = '1458053861842358434';      // 1. ใส่ ID ยศที่จะแจก (เช่น Member)
-const LOG_CHANNEL_ID = '1458096769761149032';      // 2. ใส่ ID ห้อง ❇️・𝐕𝐞𝐫𝐢𝐟𝐲-𝐥𝐨𝐠
+const VERIFY_ROLE_ID = '1458053861842358434';      // 1. ใส่ ID ยศที่จะแจก (Member)
+const LOG_CHANNEL_ID = '1458096769761149032';      // 2. ใส่ ID ห้อง Log (❇️・𝐕𝐞𝐫𝐢𝐟𝐲-𝐥𝐨𝐠)
 // ====================================================
 
-// --- 1. ลงทะเบียนคำสั่ง Slash Command ---
+// --- 2. ลงทะเบียนคำสั่ง Slash Command ---
 client.once('ready', async () => {
     console.log(`✅ บอท ${client.user.tag} ออนไลน์!`);
 
@@ -75,7 +77,7 @@ client.once('ready', async () => {
     }
 });
 
-// --- 2. จัดการ Interaction ทั้งหมด ---
+// --- 3. จัดการ Interaction ทั้งหมด ---
 client.on('interactionCreate', async (interaction) => {
     
     // ==========================================
@@ -124,7 +126,7 @@ client.on('interactionCreate', async (interaction) => {
             await interaction.reply({ embeds: [rulesEmbed] });
         }
 
-        // --- คำสั่ง /menu (แก้ไขให้เห็นทุกคนแล้ว) ---
+        // --- คำสั่ง /menu (เห็นทุกคน Public) ---
         if (interaction.commandName === 'menu') {
             const menuEmbed = new EmbedBuilder().setColor(0xFFA500).setTitle('🎁 เมนูของรางวัล');
             
@@ -133,7 +135,7 @@ client.on('interactionCreate', async (interaction) => {
             
             const row = new ActionRowBuilder().addComponents(btnOpen, btnGuide);
 
-            // 🚩 แก้ไขตรงนี้: ลบ flags ออก เพื่อให้ทุกคนเห็นข้อความนี้
+            // ไม่ใส่ flags: Ephemeral เพื่อให้ทุกคนเห็น
             await interaction.reply({ embeds: [menuEmbed], components: [row] });
         }
 
@@ -164,7 +166,8 @@ client.on('interactionCreate', async (interaction) => {
             const modal = new ModalBuilder().setCustomId('modal_verify_submit').setTitle('📝 แบบฟอร์มยืนยันตัวตน');
 
             const inputName = new TextInputBuilder().setCustomId('input_name').setLabel("ชื่อเล่นของคุณคืออะไร?").setStyle(TextInputStyle.Short).setRequired(true);
-            const inputAge = new TextInputBuilder().setCustomId('input_age').setLabel("อายุเท่าไหร่?").setStyle(TextInputStyle.Short).setRequired(true);
+            // กำกับบอก User ว่าให้ใส่ตัวเลข
+            const inputAge = new TextInputBuilder().setCustomId('input_age').setLabel("อายุเท่าไหร่? (ใส่เฉพาะตัวเลข)").setStyle(TextInputStyle.Short).setRequired(true);
             const inputReason = new TextInputBuilder().setCustomId('input_reason').setLabel("เหตุผลที่เข้าเซิร์ฟเวอร์?").setStyle(TextInputStyle.Paragraph).setRequired(true);
 
             modal.addComponents(
@@ -175,7 +178,7 @@ client.on('interactionCreate', async (interaction) => {
             await interaction.showModal(modal);
         }
 
-        // ปุ่มเมนูของรางวัล (จากคำสั่ง /menu)
+        // ปุ่มเมนูของรางวัล
         if (interaction.customId === 'open_secret_menu') {
             const select = new StringSelectMenuBuilder()
                 .setCustomId('select_item')
@@ -206,7 +209,15 @@ client.on('interactionCreate', async (interaction) => {
             const age = interaction.fields.getTextInputValue('input_age');
             const reason = interaction.fields.getTextInputValue('input_reason');
 
-            // 2. หายศและห้อง Log
+            // 🔥 2. ตรวจสอบว่าอายุเป็นตัวเลขหรือไม่? 🔥
+            if (isNaN(age)) {
+                return interaction.reply({
+                    content: `❌ **ข้อมูลผิดพลาด:** ช่อง "อายุ" กรุณากรอกเป็น **ตัวเลข** เท่านั้นครับ! (เช่น 15, 20)\n⚠️ *คุณกรอกมาว่า: ${age}*`,
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            // 3. หายศและห้อง Log
             const role = interaction.guild.roles.cache.get(VERIFY_ROLE_ID);
             const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
 
@@ -220,7 +231,7 @@ client.on('interactionCreate', async (interaction) => {
 
                 // ตอบกลับ User
                 await interaction.reply({ 
-                    content: `✅ **ยืนยันตัวตนสำเร็จ!**\nยินดีต้อนรับคุณ **${name}** เข้าสู่เซิร์ฟเวอร์ครับ!`, 
+                    content: `✅ **ยืนยันตัวตนสำเร็จ!**\nยินดีต้อนรับคุณ **${name}** (อายุ ${age} ปี) เข้าสู่เซิร์ฟเวอร์ครับ!`, 
                     flags: MessageFlags.Ephemeral 
                 });
 
@@ -233,7 +244,7 @@ client.on('interactionCreate', async (interaction) => {
                         .addFields(
                             { name: '👤 ผู้ใช้งาน', value: `${interaction.user.tag} (<@${interaction.user.id}>)`, inline: false },
                             { name: '📛 ชื่อ', value: name, inline: true },
-                            { name: '🎂 อายุ', value: age, inline: true },
+                            { name: '🎂 อายุ', value: `${age} ปี`, inline: true },
                             { name: '📝 เหตุผล', value: reason, inline: false }
                         )
                         .setFooter({ text: `User ID: ${interaction.user.id}` })
@@ -245,7 +256,7 @@ client.on('interactionCreate', async (interaction) => {
             } catch (error) {
                 console.error('Verify Error:', error);
                 if (!interaction.replied) {
-                    await interaction.reply({ content: '❌ เกิดข้อผิดพลาด: บอทอาจจะยศต่ำกว่ายศที่จะแจก', flags: MessageFlags.Ephemeral });
+                    await interaction.reply({ content: '❌ เกิดข้อผิดพลาด: บอทอาจจะยศต่ำกว่ายศที่จะแจก (กรุณาลากยศบอทขึ้นบนสุด)', flags: MessageFlags.Ephemeral });
                 }
             }
         }
