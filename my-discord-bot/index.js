@@ -124,7 +124,7 @@ client.on('interactionCreate', async (interaction) => {
             await interaction.reply({ embeds: [rulesEmbed] });
         }
 
-        // --- คำสั่ง /menu ---
+        // --- คำสั่ง /menu (แก้ไขให้เห็นทุกคนแล้ว) ---
         if (interaction.commandName === 'menu') {
             const menuEmbed = new EmbedBuilder().setColor(0xFFA500).setTitle('🎁 เมนูของรางวัล');
             
@@ -133,7 +133,8 @@ client.on('interactionCreate', async (interaction) => {
             
             const row = new ActionRowBuilder().addComponents(btnOpen, btnGuide);
 
-            
+            // 🚩 แก้ไขตรงนี้: ลบ flags ออก เพื่อให้ทุกคนเห็นข้อความนี้
+            await interaction.reply({ embeds: [menuEmbed], components: [row] });
         }
 
         // --- คำสั่ง /clear ---
